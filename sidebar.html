@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-app: #f4f6f9;
+      --bg-card: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --border: #e2e8f0;
+      --warning-bg: #fef2f2;
+      --warning-text: #dc2626;
+      --warning-border: #fca5a5;
+      --late-color: #f59e0b;
+      --absent-color: #9ca3af;
+    }
+   * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    html { overflow-y: scroll; /* always reserve scrollbar gutter – prevents viewport width jump on tab switch. Works on all browsers incl. Safari iOS/macOS. */ }
+    body { background-color: var(--bg-app); color: var(--text-main); padding-bottom: 160px; }
+
+    /* ---- NEW: Sticky wrapper keeps the title + header always on screen ---- */
+    .sticky-top-container {
+      position: sticky;
+      top: 0;
+      z-index: 101;                         /* above everything except toasts */
+      background: white;                    /* prevent content from showing through */
+    }
+
+   /* App Title Bar (sticky) – the individual sticky is now commented out */
+.app-title-bar {
+    background: var(--primary);
+    color: white;
+    text-align: center;
+    padding: 12px 16px;
+    font-weight: 700;
+    font-size: clamp(16px, 5vw, 24px);   /* responsive title size */
+    letter-spacing: 0.5px;
+    /* (old) position: sticky; top: 0; z-index: 101; – now handled by wrapper */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Version number – always small */
+.app-title-bar .version {
+    font-size: 12px;      /* explicitly small */
+    font-weight: 400;
+    opacity: 0.8;
+    margin-top: 2px;
+}
+
+    .section-body.collapsed { display: none; }
+    .section-header { cursor: pointer; }
+    /* (old) adjust header panel size to accommodate title bar */
+    .header-panel {
+      background: white;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      /* (old) position: sticky; top: calc(24px + 24px);  /* font max + padding */; z-index: 100; */
+    }
+    .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+    .control-box { display: flex; flex-direction: column; }
+    .control-box label {
+    font-size: clamp(10px, 2.5vw, 13px);   /* slightly larger */
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+    /*
+    .control-box select, .control-box input {
+      width: 100%; padding: 12px 10px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 14px; font-weight: 500; outline: none; background: white;
+      height: 48px; //uniform height
+    }*/
+    .control-box select, .control-box input {
+    width: 100%;
+    padding: clamp(8px, 2vw, 14px) clamp(6px, 2vw, 12px);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: clamp(12px, 3.5vw, 16px);
+    font-weight: 500;
+    outline: none;
+    background: white;
+    height: clamp(40px, 10vw, 52px);   /* scales with screen */
+}
+    .search-bar { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+    .section-container { background: white; margin: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .section-header { background: #fafafa; padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+
+    //.section-title { font-size: 13px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.5px; }
+    .section-title {
+    font-size: clamp(12px, 3.5vw, 16px);   /* scales smoothly */
+    font-weight: 700;
+    color: var(--text-main);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+    .section-badge { background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); }
+    .section-body { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+    .family-row-wrapper { border-left: 3px solid #cbd5e1; padding-left: 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+    .family-row-wrapper:last-child { border-bottom: none; }
+    .grid-layout { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+    /* ================================================================
+   ATTENDANCE CARD – layout & responsive text
+   Old values are commented out; new values are active.
+   To revert, comment out the new lines and uncomment the old ones.
+   ================================================================ */
+    .attendance-card {
+        /* (old) padding: 12px; */
+        padding: 12px 48px 12px 12px;        /* extra right padding to avoid Away checkbox overlap */
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+        position: relative;
+        cursor: pointer;
+        min-height: 90px;
+    }
+    .attendance-card.card-warning {
+        border: 1px solid var(--warning-border);
+        background-color: var(--warning-bg);
+    }
+
+    .card-info {
+        margin-bottom: 10px;
+    }
+
+    /* Member name – responsive font size */
+    .member-name {
+    /* (old) font-size: 14px; */
+    font-size: clamp(11px, 3vw, 15px);      /* a touch smaller, but still above subtitle */
+    font-weight: 600;
+    color: var(--text-main);
+    line-height: 1.3;
+}
+
+    /* Demographic / family role subtitle */
+    .member-subtitle {
+        /* (old) font-size: 11px; */
+        font-size: clamp(10px, 3vw, 14px);
+        font-weight: 500;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+
+    /* Visitor count subtitle */
+    .member-visitor {
+        /* (old) font-size: 11px; */
+        font-size: clamp(10px, 3vw, 14px);
+        font-weight: 600;
+        color: #0d9488;
+        margin-top: 2px;
+    }
+    .phone-warning-badge { font-size: 10px; color: var(--warning-text); font-weight: 700; margin-top: 4px; text-transform: uppercase; display: flex; align-items: center; gap: 2px; }
+
+    /* Status colours */
+    .attendance-card[data-status="On-Time"] { border-color: #16a34a; background-color: #f0fdf4; }
+    .attendance-card[data-status="Late"] { border-color: var(--late-color); background-color: #fffbeb; }
+    .attendance-card[data-status="Absent"] { border-color: var(--border); }
+    .attendance-card[data-status="Away"] { border-color: #a855f7; background-color: #faf5ff; }
+
+    /* Away checkbox – stacked below label, larger, positioned at top-right but not covering name */
+    .away-check-container {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      user-select: none;
+    }
+    .away-check-container input[type="checkbox"] {
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      margin: 0;
+      accent-color: var(--primary);
+    }
+
+    /* Fixed bottom bar (Save Attendance + Navigation) */
+    .bottom-fixed-container {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 110;
+    }
+    .save-attendance-wrapper {
+      padding: 12px 16px; background: white; border-top: 1px solid var(--border);
+      display: none;
+    }
+    .save-attendance-wrapper.visible { display: block; }
+    .submit-button { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+    .submit-button:hover { background: #1d4ed8; }
+
+/* ================================================================
+   BOTTOM TAB BAR – perfectly stable, no clipping
+   Old values are commented out; new values are active.
+   To revert, comment out the new lines and uncomment the old ones.
+   ================================================================ */
+.navigation-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);        /* three equal columns – never shift */
+    align-items: center;
+    justify-items: center;                        /* center content horizontally inside each cell */
+    background: white;
+    border-top: 1px solid var(--border);
+    padding: 8px 0;                               /* more vertical breathing room */
+    /* (old) font-size: clamp(20px, 5vw, 28px); */
+    font-size: 24px;                              /* fixed px – vw caused shift on scrollbar toggle */
+    font-weight: 600;
+    color: var(--text-muted);
+    /* (old) height: clamp(52px, 12vw, 72px); */
+    height: 60px;                                 /* fixed px – vw caused shift on scrollbar toggle */
+    text-align: center;
+    overflow: hidden;                             /* prevent any accidental spill */
+}
+
+.nav-item {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;                                     /* comfortable spacing */
+    width: 100%;
+    overflow: hidden;                             /* keep content inside */
+}
+
+/* Label text – smaller, but readable */
+.nav-item span {
+    /* (old) font-size: clamp(12px, 2.5vw, 16px); */
+    font-size: 13px;                              /* fixed px – vw caused shift on scrollbar toggle */
+    line-height: 1.2;
+}
+
+    .nav-item.active { color: var(--primary); }
+    .view-view-panel { display: none; }
+    .view-view-panel.active-view { display: block; }
+    //.empty-placeholder { text-align: center; color: var(--text-muted); font-size: 14px; padding: 40px 20px; }
+    .empty-placeholder {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: clamp(14px, 4vw, 18px);   /* responsive */
+    padding: 40px 20px;
+}
+    .toast-notification {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: #10b981; color: white; padding: 16px 28px; border-radius: 12px;
+      font-size: 18px; font-weight: 700; text-align: center; z-index: 9999;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2); max-width: 90%; word-break: break-word;
+      cursor: pointer; transition: opacity 0.3s;
+    }
+    .toast-notification.error { background: #dc2626; }
+    .access-denied {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 80vh; text-align: center; padding: 20px;
+    }
+    .access-denied h1 { font-size: 28px; color: var(--warning-text); margin-bottom: 16px; }
+    .access-denied p { color: var(--text-muted); font-size: 15px; }
+
+    /* admin editor styles */
+    .inline-admin-container {
+      background: #fff8f0; border: 1px solid #ffe4c4; border-radius: 8px;
+      padding: 14px; margin-top: 12px;
+    }
+    .history-box {
+      background: #f8fafc; border: 1px solid var(--border);
+      max-height: 120px; overflow-y: auto; padding: 8px; border-radius: 6px;
+      font-size: 11px; white-space: pre-wrap; font-family: monospace; color: #334155; margin-bottom: 8px;
+    }
+
+    /* Quick‑Add Form improvements */
+    .quick-add-form input, .quick-add-form select {
+      padding: 14px; font-size: 15px; border-radius: 8px; border: 1px solid var(--border);
+      height: 48px;
+    }
+  </style>
+</head>
+<body>
+
+  <? if (config && config.accessDenied) { ?>
+    <div class="access-denied">
+      <h1>⛔ Access Denied</h1>
+      <p>You do not have permission to use this system.<br>Please contact the administrator to be added to the Roles sheet.</p>
+    </div>
+  <? } else { ?>
+
+  <!-- NEW: sticky wrapper for the entire top area -->
+  <div class="sticky-top-container">
+
+    <!-- App Title Bar -->
+    <div class="app-title-bar">
+      <?= config ? config.appTitle : 'Event Checkin App' ?>
+      <div class="version"><?= config ? config.appVersion : 'v1.0.0' ?></div>
+    </div>
+
+    <div class="header-panel">
+      <div class="controls-grid">
+        <div class="control-box">
+          <label>group</label>
+          <select id="uiSite" onchange="runRosterFetchEngine()"></select>
+        </div>
+        <div class="control-box">
+          <label>Event Type</label>
+          <select id="uiEvent" onchange="runRosterFetchEngine()">
+            <? if (config && config.events.length > 1) { ?>
+              <option value="" disabled selected hidden>-- Select Event --</option>
+            <? } ?>
+            <? for(var j=0; j < (config ? config.events.length : 0); j++) { ?>
+              <option value="<?= config.events[j] ?>"><?= config.events[j] ?></option>
+            <? } ?>
+          </select>
+        </div>
+        <div class="control-box">
+          <label>Event Date</label>
+          <input type="text" id="uiDate" value="31/05/2026">
+        </div>
+      </div>
+      <!-- Global search bar (only visible on Roll-Call) -->
+      <input type="text" id="globalSearch" class="search-bar" placeholder="🔍 Search profiles by name..." oninput="handleGlobalSearch()" style="display: none;">
+    </div>
+
+  </div><!-- end sticky-top-container -->
+
+  <div id="viewRollCall" class="view-view-panel active-view">
+    <div id="rosterDynamicInsertionTarget">
+      <div class="empty-placeholder">Select parameters to sync master sheet layout profiles.</div>
+    </div>
+  </div>
+
+  <div id="viewDirectory" class="view-view-panel">
+    <div class="section-container quick-add-form">
+      <div class="section-header"><div class="section-title">✨ Quick‑Add Person</div></div>
+      <div class="section-body" style="gap:10px;">
+        <input type="text" id="addFirst" placeholder="Given First Name">
+        <input type="text" id="addMiddle" placeholder="Middle Name (Optional)">
+        <input type="text" id="addLast" placeholder="Family Surname">
+        <input type="tel" id="addPhone" placeholder="Mobile Contact">
+        <select id="addDemo" onchange="toggleLevelInput()">
+          <option value="">-- Select Demographic --</option>
+          <option value="Family Row">Family Row</option>
+          <option value="Single Male">Single Male</option>
+          <option value="Single Female">Single Female</option>
+          <option value="Double">Double</option>
+          <option value="University">University</option>
+          <option value="Visitor">Visitor</option>
+        </select>
+        <div id="levelInputContainer" style="display:none;">
+          <input type="text" id="addLevel" placeholder="e.g. Monash - Bachelor">
+        </div>
+        <button id="quickAddBtn" onclick="executeQuickAdd()" style="width:100%; background:#10b981; color:white; border:none; padding:14px; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer;">Add to Database</button>
+      </div>
+    </div>
+
+    <div class="section-container">
+      <div class="section-header"><div class="section-title">📂 group Directory</div></div>
+      <div class="section-body" style="gap:0;">
+        <input type="text" id="directorySearchInput" placeholder="🔍 Search profiles to update..." oninput="renderDirectoryListViewHtml()"
+               style="width:100%; padding:14px; margin-bottom:12px; border:1px solid var(--border); border-radius:8px; font-size:15px; background:white;">
+        <div id="directoryResultsContainer">
+          <div class="empty-placeholder">Start typing a name to search...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewAnalytics" class="view-view-panel">
+    <div class="section-container">
+      <div class="section-header"><div class="section-title" id="statsHeaderTitle">📊 Statistics</div></div>
+      <div class="section-body" style="gap:14px; padding:20px;" id="statsContainer">
+        <div style="display:grid; grid-template-columns: repeat(2,1fr); gap:12px;" id="statsGrid">
+          <div style="background:#f0fdf4; padding:12px; border-radius:6px; border:1px solid #bbf7d0; text-align:center;">
+            <div style="font-size:14px; font-weight:700; color:#16a34a; text-transform:uppercase;">On-Time</div>
+            <div id="statCountOnTime" style="font-size:24px; font-weight:700; color:#15803d; margin-top:2px;">0</div>
+          </div>
+          <div style="background:#fefce8; padding:12px; border-radius:6px; border:1px solid #fef08a; text-align:center;">
+            <div style="font-size:14px; font-weight:700; color:#ca8a04; text-transform:uppercase;">Late (>20m)</div>
+            <div id="statCountLate" style="font-size:24px; font-weight:700; color:#a16207; margin-top:2px;">0</div>
+          </div>
+          <div style="background:#faf5ff; padding:12px; border-radius:6px; border:1px solid #e9d5ff; text-align:center;">
+            <div style="font-size:14px; font-weight:700; color:#9333ea; text-transform:uppercase;">Away</div>
+            <div id="statCountAway" style="font-size:24px; font-weight:700; color:#7e22ce; margin-top:2px;">0</div>
+          </div>
+          <div style="background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0; text-align:center;">
+            <div style="font-size:14px; font-weight:700; color:#64748b; text-transform:uppercase;">Absent</div>
+            <div id="statCountAbsent" style="font-size:24px; font-weight:700; color:#334155; margin-top:2px;">0</div>
+          </div>
+        </div>
+        <div id="siteStatsBreakdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fixed bottom container -->
+  <div class="bottom-fixed-container">
+    <div class="save-attendance-wrapper visible" id="saveAttendanceWrapper">
+      <button class="submit-button" onclick="commitAttendanceTransactionToCloud()">Save Attendance</button>
+    </div>
+    <div class="navigation-bar">
+      <div class="nav-item active" id="navRollCall" onclick="switchActiveTabLayerView('RollCall')">📋<span>Roll-Call</span></div>
+      <div class="nav-item" id="navDirectory" onclick="switchActiveTabLayerView('Directory')">📂<span>Directory</span></div>
+      <div class="nav-item" id="navStats" onclick="switchActiveTabLayerView('Stats')">📊<span>Stats</span></div>
+    </div>
+  </div>
+
+  <script>
+    // ===== GLOBAL CONFIG (injected from server) =====
+    let masterRosterCacheMemorySpace = {};
+    let directoryGlobalLookupIndex = {};
+    let activeTab = 'RollCall';
+
+    const appConfig = {
+      userRole: "<?= config ? config.userRole : 'None' ?>",
+      allowedSites: JSON.parse('<?!= config && config.allowedSitesJson ? config.allowedSitesJson : "[]" ?>'),
+      allowedsites: "<?= config ? config.allowedsites : 'All' ?>",
+      allowedEvents: JSON.parse('<?!= config && config.allowedEventsJson ? config.allowedEventsJson : "[]" ?>'),
+      userPermissionLevel: "<?= config ? config.userPermissionLevel : '' ?>"
+    };
+
+    const canadminEdit = ["Admin", "organizer", "admin", "App Developer"].includes(appConfig.userRole);
+
+    // ===== BUILD SITE DROPDOWN WITH PLACEHOLDER =====
+    function buildSiteDropdown() {
+      const sel = document.getElementById('uiSite');
+      sel.innerHTML = '';
+      const sites = Array.isArray(appConfig.allowedSites) ? appConfig.allowedSites : [];
+      if (sites.length > 1) {
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        placeholder.hidden = true;
+        placeholder.textContent = '-- Select Site --';
+        sel.appendChild(placeholder);
+      }
+      sites.forEach(site => {
+        const opt = document.createElement('option');
+        opt.value = site;
+        opt.textContent = site;
+        sel.appendChild(opt);
+      });
+      sel.disabled = (sites.length === 1);
+    }
+
+    // ===== DEMOGRAPHIC DROPDOWN TOGGLE =====
+    function toggleLevelInput() {
+      const demo = document.getElementById('addDemo').value;
+      const container = document.getElementById('levelInputContainer');
+      if (demo === 'University') {
+        container.style.display = 'block';
+      } else {
+        container.style.display = 'none';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      buildSiteDropdown();
+
+      if (Array.isArray(appConfig.allowedEvents) && appConfig.allowedEvents.length === 1) {
+        const eventSel = document.getElementById('uiEvent');
+        eventSel.value = appConfig.allowedEvents[0];
+        eventSel.disabled = true;
+      }
+
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('uiDate').value = dd + '/' + mm + '/' + yyyy;
+
+      // Show global search only on Roll-Call
+      document.getElementById('globalSearch').style.display = (activeTab === 'RollCall') ? 'block' : 'none';
+
+      runRosterFetchEngine();
+      syncGlobalDirectoryCache();
+    });
+
+    // ===== TAB SWITCHING =====
+    function switchActiveTabLayerView(targetViewKey) {
+      document.querySelectorAll('.view-view-panel').forEach(el => el.classList.remove('active-view'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      activeTab = targetViewKey;
+
+      const saveWrapper = document.getElementById('saveAttendanceWrapper');
+      const globalSearch = document.getElementById('globalSearch');
+
+      if (targetViewKey === 'RollCall') {
+        document.getElementById('viewRollCall').classList.add('active-view');
+        document.getElementById('navRollCall').classList.add('active');
+        saveWrapper.classList.add('visible');
+        globalSearch.style.display = 'block';
+        evaluateRealtimeSearchFilter();
+      } else if (targetViewKey === 'Directory') {
+        document.getElementById('viewDirectory').classList.add('active-view');
+        document.getElementById('navDirectory').classList.add('active');
+        saveWrapper.classList.remove('visible');
+        globalSearch.style.display = 'none';
+        renderDirectoryListViewHtml();
+      } else if (targetViewKey === 'Stats') {
+        document.getElementById('viewAnalytics').classList.add('active-view');
+        document.getElementById('navStats').classList.add('active');
+        saveWrapper.classList.remove('visible');
+        globalSearch.style.display = 'none';
+        loadStatsDashboard();
+      }
+    }
+
+    function toggleCategorySection(sectionId) {
+      const body = document.getElementById(`body-target-${sectionId}`);
+      if (body) body.classList.toggle('collapsed');
+    }
+
+    // ===== GLOBAL SEARCH (Roll-Call only) =====
+    function handleGlobalSearch() {
+      evaluateRealtimeSearchFilter();
+    }
+
+    // ===== ROSTER FETCH & RENDER =====
+    function runRosterFetchEngine() {
+      const site = document.getElementById('uiSite').value;
+      const event = document.getElementById('uiEvent').value;
+      if (!site || !event) {
+        document.getElementById('rosterDynamicInsertionTarget').innerHTML = '<div class="empty-placeholder">Select a site and event to begin.</div>';
+        return;
+      }
+
+      const insertionTarget = document.getElementById('rosterDynamicInsertionTarget');
+      insertionTarget.innerHTML = '<div class="empty-placeholder">⏳ Fetching live database profiles roster...</div>';
+
+      const date = document.getElementById('uiDate').value;
+
+      google.script.run
+        .withSuccessHandler((receivedRosterDataset) => {
+          masterRosterCacheMemorySpace = {};
+          (receivedRosterDataset || []).forEach(p => masterRosterCacheMemorySpace[p.id] = p);
+          renderAttendanceRosterLayoutGrid();
+        })
+        .withFailureHandler((err) => {
+          insertionTarget.innerHTML = `<div class="empty-placeholder" style="color:red;">⚠️ System Fetch Error: ${err.toString()}</div>`;
+        })
+        .getPeople(site, date, event, appConfig.userRole, appConfig.allowedsites);
+    }
+
+    function renderAttendanceRosterLayoutGrid() {
+      const mainInsertionContainer = document.getElementById('rosterDynamicInsertionTarget');
+      mainInsertionContainer.innerHTML = "";
+      const keysList = Object.keys(masterRosterCacheMemorySpace);
+      if (keysList.length === 0) {
+        mainInsertionContainer.innerHTML = '<div class="empty-placeholder">📂 No member records found matching this configuration.</div>';
+        return;
+      }
+
+      const categoriesStructureMap = {
+        "1. Families": { familiesMap: {}, rawList: [] },
+        "2. Doubles": [],
+        "3. Singles (Male)": [],
+        "4. Singles (Female)": [],
+        "5. University Students": [],
+        "6. Others / Visitors": []
+      };
+
+      keysList.forEach(idKey => {
+        const person = masterRosterCacheMemorySpace[idKey];
+        person.id = idKey;
+        let cat = person.masterCategory || "5. Others / Visitors";
+        if (!categoriesStructureMap[cat]) cat = "5. Others / Visitors";
+        if (cat === "1. Families") {
+          const famId = person.familyId || "UNGROUPED";
+          if (famId === "UNGROUPED") {
+            categoriesStructureMap["1. Families"].rawList.push(person);
+          } else {
+            if (!categoriesStructureMap["1. Families"].familiesMap[famId]) {
+              categoriesStructureMap["1. Families"].familiesMap[famId] = [];
+            }
+            categoriesStructureMap["1. Families"].familiesMap[famId].push(person);
+          }
+        } else {
+          categoriesStructureMap[cat].push(person);
+        }
+      });
+
+      Object.keys(categoriesStructureMap).forEach(catKey => {
+        const bucket = categoriesStructureMap[catKey];
+        let count = 0;
+        if (catKey === "1. Families") {
+          count = bucket.rawList.length;
+          Object.keys(bucket.familiesMap).forEach(fId => { count += bucket.familiesMap[fId].length; });
+        } else {
+          count = bucket.length;
+        }
+        if (count === 0) return;
+
+        const sectionBox = document.createElement('div');
+        sectionBox.className = "section-container";
+        const safeId = btoa(catKey).replace(/=/g, "");
+        sectionBox.id = `dom-section-${safeId}`;
+        sectionBox.innerHTML = `
+          <div class="section-header" onclick="toggleCategorySection('${safeId}')">
+            <div class="section-title">${catKey.substring(3)}</div>
+            <div class="section-badge" id="counter-badge-${safeId}">TOTAL: ${count}</div>
+          </div>
+          <div class="section-body" id="body-target-${safeId}"></div>
+        `;
+        mainInsertionContainer.appendChild(sectionBox);
+        const bodyTarget = document.getElementById(`body-target-${safeId}`);
+
+        if (catKey === "1. Families") {
+          Object.keys(bucket.familiesMap).forEach(famId => {
+            const members = bucket.familiesMap[famId];
+            const rowWrapper = document.createElement('div');
+            rowWrapper.className = "family-row-wrapper";
+            rowWrapper.innerHTML = `<div class="grid-layout" id="fam-grid-${famId}"></div>`;
+            bodyTarget.appendChild(rowWrapper);
+            const grid = document.getElementById(`fam-grid-${famId}`);
+            members.forEach(p => grid.appendChild(generateAttendanceInteractiveCardNode(p)));
+          });
+          if (bucket.rawList.length > 0) {
+            const extraGrid = document.createElement('div');
+            extraGrid.className = "grid-layout";
+            bodyTarget.appendChild(extraGrid);
+            bucket.rawList.forEach(p => extraGrid.appendChild(generateAttendanceInteractiveCardNode(p)));
+          }
+        } else {
+          const grid = document.createElement('div');
+          grid.className = "grid-layout";
+          bodyTarget.appendChild(grid);
+          bucket.forEach(p => grid.appendChild(generateAttendanceInteractiveCardNode(p)));
+        }
+      });
+
+      const spacer = document.createElement('div');
+      spacer.style.height = '80px';
+      mainInsertionContainer.appendChild(spacer);
+
+      if (activeTab === 'RollCall') evaluateRealtimeSearchFilter();
+    }
+
+    // ===== CARD SUBTITLE LOGIC (child logic added) =====
+    function generateAttendanceInteractiveCardNode(personObject) {
+      if (personObject.status === "Away") {
+        personObject.away = true;
+        if (personObject.onTime === undefined) personObject.onTime = false;
+      } else if (personObject.status === "On-Time") {
+        personObject.away = false;
+        personObject.onTime = true;
+      } else if (personObject.status === "Late") {
+        personObject.away = false;
+        personObject.onTime = false;
+      } else {
+        personObject.away = false;
+        personObject.onTime = false;
+        personObject.status = "Absent";
+      }
+
+      const card = document.createElement('div');
+      card.className = `attendance-card ${personObject.missingPhone && !personObject.onTime ? 'card-warning' : ''}`;
+      card.id = `member-card-wrapper-id-${personObject.id}`;
+      card.setAttribute('data-status', personObject.status);
+      card.setAttribute('onclick', `handleCardTap('${personObject.id}', event)`);
+
+      let subtitleHtml = '';
+      const demo = personObject.demographic;
+      const level = personObject.level;
+      const status = personObject.role;
+      // Expanded familial roles to include child variants
+      const familialRoles = ['father','mother','husband','wife','son','daughter','child',
+                             'grandma','grandpa','grandchild','brother','sister'];
+
+      if (personObject.visitorLabel) {
+        subtitleHtml = `<div class="member-visitor">${personObject.visitorLabel}</div>`;
+      } else if (demo && familialRoles.some(role => demo.toLowerCase().includes(role))) {
+        // Recognise even if demo is "Child - Son" etc.
+        subtitleHtml = `<div class="member-subtitle">${demo}</div>`;
+      } else if (demo && demo.toLowerCase() === 'university' && level) {
+        subtitleHtml = `<div class="member-subtitle">Uni - ${level}</div>`;
+      } else if (status && status.toLowerCase() !== 'gac member' && status.toLowerCase() !== 'member') {
+        subtitleHtml = `<div class="member-subtitle">${status}</div>`;
+      }
+
+      const phoneWarn = personObject.missingPhone ? `<div class="phone-warning-badge">⚠️ Missing Phone</div>` : '';
+
+      card.innerHTML = `
+        <div class="card-info">
+          <div class="member-name">${personObject.name}</div>
+          ${subtitleHtml}
+          ${phoneWarn}
+        </div>
+        <div class="away-check-container">
+          <span>Away</span>
+          <input type="checkbox" id="away-cb-${personObject.id}" ${personObject.away ? 'checked' : ''}
+                 onclick="event.stopPropagation();" onchange="handleAwayCheckbox('${personObject.id}', this.checked)">
+        </div>
+      `;
+      return card;
+    }
+
+    // ===== CARD INTERACTIONS =====
+    function handleCardTap(personId, event) {
+      const person = masterRosterCacheMemorySpace[personId];
+      if (!person || person.away) return;
+
+      if (person.missingPhone && person.role.toLowerCase() !== "gac member") {
+        showPhonePrompt(personId);
+        return;
+      }
+
+      const dateInput = document.getElementById('uiDate').value;
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayStr = dd + '/' + mm + '/' + yyyy;
+      const isToday = (dateInput === todayStr);
+
+      if (!isToday) {
+        if (person.status === "On-Time") {
+          person.status = "Late";
+          person.onTime = false;
+        } else if (person.status === "Late") {
+          person.status = "Absent";
+          person.onTime = false;
+        } else {
+          person.status = "On-Time";
+          person.onTime = true;
+        }
+      } else {
+        person.onTime = !person.onTime;
+        person.status = person.onTime ? "On-Time" : "Absent";
+      }
+      updateCardDisplay(personId);
+    }
+
+    function showPhonePrompt(personId) {
+      const existing = document.querySelector('.toast-notification');
+      if (existing) existing.remove();
+
+      const person = masterRosterCacheMemorySpace[personId];
+      const toast = document.createElement('div');
+      toast.className = 'toast-notification';
+      toast.style.background = '#1e40af';
+      toast.style.padding = '20px';
+      toast.style.width = '85%';
+      toast.innerHTML = `
+        <div style="margin-bottom:12px;">📞 Enter phone for ${person.name}</div>
+        <input type="tel" id="phoneInput" placeholder="Phone number" style="width:100%; padding:8px; border-radius:6px; border:none; margin-bottom:10px;">
+        <div style="display:flex; gap:8px;">
+          <button onclick="savePhoneAndMark('${personId}')" style="flex:1; padding:8px; background:#10b981; color:white; border:none; border-radius:6px; font-weight:600;">Save & Mark</button>
+          <button onclick="skipPhoneAndMark('${personId}')" style="flex:1; padding:8px; background:#6b7280; color:white; border:none; border-radius:6px; font-weight:600;">Skip</button>
+        </div>
+      `;
+      document.body.appendChild(toast);
+    }
+
+    function savePhoneAndMark(personId) {
+      const phoneInput = document.getElementById('phoneInput');
+      const phone = phoneInput ? phoneInput.value.trim() : "";
+      if (phone) {
+        google.script.run.updateVisitorPhone(personId, phone);
+        masterRosterCacheMemorySpace[personId].missingPhone = false;
+      }
+      document.querySelector('.toast-notification').remove();
+      const person = masterRosterCacheMemorySpace[personId];
+      person.onTime = true;
+      person.status = "On-Time";
+      updateCardDisplay(personId);
+    }
+
+    function skipPhoneAndMark(personId) {
+      document.querySelector('.toast-notification').remove();
+      const person = masterRosterCacheMemorySpace[personId];
+      person.onTime = true;
+      person.status = "On-Time";
+      updateCardDisplay(personId);
+    }
+
+    function handleAwayCheckbox(personId, checked) {
+      const person = masterRosterCacheMemorySpace[personId];
+      if (!person) return;
+      person.away = checked;
+      if (checked) {
+        person.status = "Away";
+        person.onTime = false;
+      } else {
+        person.status = "Absent";
+      }
+      updateCardDisplay(personId);
+    }
+
+    function updateCardDisplay(personId) {
+      const person = masterRosterCacheMemorySpace[personId];
+      const card = document.getElementById(`member-card-wrapper-id-${personId}`);
+      if (!card || !person) return;
+      card.setAttribute('data-status', person.status);
+      const cb = document.getElementById(`away-cb-${personId}`);
+      if (cb) cb.checked = person.away;
+    }
+
+    function evaluateRealtimeSearchFilter() {
+      const query = document.getElementById('globalSearch').value.toLowerCase().trim();
+      document.querySelectorAll('.attendance-card').forEach(card => {
+        const id = card.id.replace('member-card-wrapper-id-', '');
+        const person = masterRosterCacheMemorySpace[id];
+        card.style.display = (person && person.name.toLowerCase().includes(query)) ? "flex" : "none";
+      });
+    }
+
+    // ===== DIRECTORY =====
+    function syncGlobalDirectoryCache() {
+      google.script.run
+        .withSuccessHandler(data => {
+          directoryGlobalLookupIndex = data || {};
+          if (activeTab === 'Directory') renderDirectoryListViewHtml();
+        })
+        .getAllPeopleInDatabase();
+    }
+
+    function renderDirectoryListViewHtml() {
+      const resultsContainer = document.getElementById('directoryResultsContainer');
+      if (!resultsContainer) return;
+      const searchTerm = document.getElementById('directorySearchInput').value.trim().toLowerCase();
+      const keys = Object.keys(directoryGlobalLookupIndex);
+      if (keys.length === 0) {
+        resultsContainer.innerHTML = '<div class="empty-placeholder">No directory records found.</div>';
+        return;
+      }
+      if (!searchTerm) {
+        resultsContainer.innerHTML = '<div class="empty-placeholder">Start typing a name to search...</div>';
+        return;
+      }
+      let html = '';
+      keys.forEach(id => {
+        const p = directoryGlobalLookupIndex[id];
+        if (!p.name.toLowerCase().includes(searchTerm)) return;
+        //changed onclick="openadminEditor('${id}') to onclick="toggleadminEditor('${id}')
+        html += `
+        <div class="directory-row-item" onclick="toggleadminEditor('${id}')" style="cursor:pointer; padding:14px; border:1px solid var(--border); border-radius:8px; margin-bottom:6px; display:flex; align-items:center;">
+            <div style="font-weight:600; font-size:15px;">${p.name}</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-left:auto;">${p.site}</div>
+          <!--
+            <div>
+            <div style="font-weight:600; font-size:15px;">${p.name}</div>
+            <div style="font-size:11px; color:var(--text-muted);">ID: ${id} | ${p.site}</div>
+            </div>
+            <span style="font-size:11px; color:var(--primary);">✏️</span>
+          -->
+        </div>
+        `;
+      });
+      resultsContainer.innerHTML = html || `<div class="empty-placeholder">No matches for "${searchTerm}".</div>`;
+    }
+
+    /**
+     * Toggles the admin editor for a directory row.
+     * If the editor is already open for this person, close it (cancel without saving).
+     * Otherwise, open it.
+     */
+    function toggleadminEditor(personId) {
+      const existingEditor = document.getElementById(`inline-editor-${personId}`);
+      if (existingEditor) {
+        // Editor is open – close it (cancel)
+        existingEditor.remove();
+      } else {
+        // Open the editor
+        openadminEditor(personId);
+      }
+    }
+
+    function openadminEditor(personId) {
+      if (!canadminEdit) {
+        showToast("Access Denied: You don't have permission to edit profiles.", true);
+        return;
+      }
+
+      document.querySelectorAll('.inline-admin-container').forEach(el => el.remove());
+
+      const person = directoryGlobalLookupIndex[personId];
+      if (!person) return;
+
+      //const row = document.querySelector(`.directory-row-item[onclick="openadminEditor('${personId}')"]`);
+      const row = document.querySelector(`.directory-row-item[onclick="toggleadminEditor('${personId}')"]`);
+      if (!row) return;
+
+      const editorBox = document.createElement('div');
+      editorBox.id = `inline-editor-${personId}`;   // NEW: give it a unique id
+      editorBox.className = 'inline-admin-container';
+      editorBox.innerHTML = `
+        <h4 style="margin-bottom:8px; font-size:16px; font-weight:700; color:#c2410c;">💼 Log for ${person.name}</h4>
+        <div class="history-box">${person.notes || "No historic notes logged."}</div>
+
+        <div style="margin-bottom:10px;">
+          <label style="font-size:14px; font-weight:600;">Modify Demographic</label>
+          <select id="adminDemoSelect" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:14px;">
+            <option value="">-- Keep Current --</option>
+            <option value="Father">Father</option>
+            <option value="Mother">Mother</option>
+            <option value="Husband">Husband</option>
+            <option value="Wife">Wife</option>
+            <option value="Son">Son</option>
+            <option value="Daughter">Daughter</option>
+            <option value="Child">Child</option>
+            <option value="University">University</option>
+            <option value="Visitor">Visitor</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <label style="font-size:14px; font-weight:600;">Modify Status Flag</label>
+          <select id="adminFlagSelect" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:14px;">
+            <option value="">-- Clear Flag --</option>
+            <option value="Urgent Request">Urgent Request</option>
+            <option value="Hospitalization Alert">Hospitalization Alert</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:10px;">
+          <label style="font-size:14px; font-weight:600;">Append New Note Entry</label>
+          <input type="text" id="adminNoteText" placeholder="Type notes here..." style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-size:14px;">
+        </div>
+
+        <button class="submit-button" style="background:#c2410c;" onclick="executeadminSave('${personId}')">Save Adjustments</button>
+      `;
+
+      row.parentNode.insertBefore(editorBox, row.nextSibling);
+
+      // Pre-fill existing values
+      if (person.flag) {
+        const flagSelect = document.getElementById('adminFlagSelect');
+        if (flagSelect) flagSelect.value = person.flag;
+      }
+      if (person.demographic) {
+        const demoSelect = document.getElementById('adminDemoSelect');
+        if (demoSelect) demoSelect.value = person.demographic;
+      }
+    }
+
+    function executeadminSave(personId) {
+      const flagVal = document.getElementById('adminFlagSelect').value;
+      const textVal = document.getElementById('adminNoteText').value;
+      const newDemo = document.getElementById('adminDemoSelect').value;
+
+      // Update flag and notes first
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            const p = directoryGlobalLookupIndex[personId];
+            if (p) {
+              p.notes = res.updatedNotes;
+              p.flag = flagVal;
+            }
+            // If demographic changed, update it and log
+            if (newDemo && newDemo !== p.demographic) {
+              google.script.run
+                .withSuccessHandler(demoRes => {
+                  if (demoRes.success) {
+                    p.demographic = newDemo;
+                    showToast("✅ Profile updated (including demographic).");
+                  } else {
+                    showToast("Demographic update failed: " + demoRes.message, true);
+                  }
+                })
+                .updateDemographic(personId, newDemo);
+            } else {
+              showToast("✅ Profile updated!");
+            }
+            document.querySelector('.inline-admin-container').remove();
+            renderDirectoryListViewHtml();
+          } else {
+            showToast("Error: " + res.message, true);
+          }
+        })
+        .updateadminStatus(personId, flagVal, textVal);
+    }
+
+    // ===== QUICK‑ADD =====
+    function showToast(message, isError = false, duration = 3000) {
+      const existing = document.querySelector('.toast-notification');
+      if (existing) existing.remove();
+      const toast = document.createElement('div');
+      toast.className = 'toast-notification' + (isError ? ' error' : '');
+      toast.innerText = message;
+      toast.addEventListener('click', () => toast.remove());
+      document.body.appendChild(toast);
+      if (duration > 0) setTimeout(() => { if (toast.parentNode) toast.remove(); }, duration);
+    }
+
+    function executeQuickAdd() {
+      const first = document.getElementById('addFirst').value.trim();
+      const middle = document.getElementById('addMiddle').value.trim();
+      const last = document.getElementById('addLast').value.trim();
+      const phone = document.getElementById('addPhone').value.trim();
+      const demographic = document.getElementById('addDemo').value;
+      const site = document.getElementById('uiSite').value;
+      const level = document.getElementById('addLevel') ? document.getElementById('addLevel').value.trim() : "";
+
+      if (!site) { showToast("Please select a group site first.", true); return; }
+      if (!first || !last) { showToast("First and last name are required.", true); return; }
+
+      const btn = document.getElementById('quickAddBtn');
+      btn.disabled = true;
+      btn.innerText = 'Adding...';
+      showToast('Adding person, please wait...', false, 0);
+
+      google.script.run
+        .withSuccessHandler(() => {
+          showToast('✅ Person added successfully!', false, 3000);
+          document.getElementById('addFirst').value = '';
+          document.getElementById('addMiddle').value = '';
+          document.getElementById('addLast').value = '';
+          document.getElementById('addPhone').value = '';
+          document.getElementById('addDemo').value = '';
+          if (document.getElementById('addLevel')) document.getElementById('addLevel').value = '';
+          document.getElementById('levelInputContainer').style.display = 'none';
+          btn.disabled = false;
+          btn.innerText = 'Add to Database';
+          syncGlobalDirectoryCache();
+          runRosterFetchEngine();
+        })
+        .withFailureHandler(err => {
+          showToast('❌ Error: ' + err.message, true, 4000);
+          btn.disabled = false;
+          btn.innerText = 'Add to Database';
+        })
+        .quickAddPerson(site, first, middle, last, demographic, phone, level);
+    }
+
+    // ===== STATS =====
+    function loadStatsDashboard() {
+      const date = document.getElementById('uiDate').value;
+      const eventType = document.getElementById('uiEvent').value;
+      if (!eventType) return;
+
+      const userRole = appConfig.userRole;
+      const allowedSites = appConfig.allowedSites;
+
+      document.getElementById('statCountOnTime').innerText = '...';
+      document.getElementById('statCountLate').innerText = '...';
+      document.getElementById('statCountAway').innerText = '...';
+      document.getElementById('statCountAbsent').innerText = '...';
+      document.getElementById('siteStatsBreakdown').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(renderStats)
+        .withFailureHandler(err => console.error("Stats fetch failed:", err))
+        .getFilteredStats(date, eventType, userRole, allowedSites);
+    }
+
+    function renderStats(response) {
+      if (!response || !response.global) {
+        document.getElementById('statsGrid').innerHTML = '<div class="empty-placeholder">No data for this selection.</div>';
+        return;
+      }
+      const g = response.global;
+      document.getElementById('statCountOnTime').innerText = g.onTime;
+      document.getElementById('statCountLate').innerText = g.late;
+      document.getElementById('statCountAway').innerText = g.away;
+      document.getElementById('statCountAbsent').innerText = g.absent;
+
+      if (response.sites && Object.keys(response.sites).length > 0) {
+        let breakdownHtml = '';
+        for (let site in response.sites) {
+          const s = response.sites[site];
+          // adjusts the site fonts to be bigger on the statistics page
+          breakdownHtml += `
+          <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; padding:14px; margin-top:12px;">
+            <div style="font-weight:700; font-size:20px; color:#6b21a8; margin-bottom:8px;">📍 ${site}</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:18px;">
+              <div>On‑Time: <strong>${s.onTime}</strong></div>
+              <div>Late: ${s.late}</div>
+              <div>Away: ${s.away}</div>
+              <div>Absent: ${s.absent}</div>
+            </div>
+          </div>`;
+        }
+        document.getElementById('siteStatsBreakdown').innerHTML = breakdownHtml;
+      } else {
+        document.getElementById('siteStatsBreakdown').innerHTML = '';
+      }
+    }
+
+    // ===== SUBMIT ATTENDANCE =====
+    function commitAttendanceTransactionToCloud() {
+      const site = document.getElementById('uiSite').value;
+      const date = document.getElementById('uiDate').value;
+      const event = document.getElementById('uiEvent').value;
+      if (!site) { showToast("Please select a site.", true); return; }
+      if (!event) { showToast("Please select an event.", true); return; }
+
+      const statusMap = {};
+      for (let id in masterRosterCacheMemorySpace) {
+        const p = masterRosterCacheMemorySpace[id];
+        statusMap[p.id] = p.status;
+      }
+
+      const btn = document.querySelector('.submit-button');
+      btn.innerText = '⏳ Saving...';
+      btn.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(res => {
+          showToast(res.message, false, 4000);
+          btn.innerText = 'Save Attendance';
+          btn.disabled = false;
+          runRosterFetchEngine();
+        })
+        .withFailureHandler(err => {
+          showToast('Error: ' + err.message, true, 4000);
+          btn.innerText = 'Save Attendance';
+          btn.disabled = false;
+        })
+        .submitAttendance(site, date, event, statusMap);
+    }
+  </script>
+  <? } // end accessDenied ?>
+</body>
+</html>
